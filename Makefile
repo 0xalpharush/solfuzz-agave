@@ -38,7 +38,14 @@ shared_obj:
 	cp target/stub-agave/x86_64-unknown-linux-gnu/release/libsolfuzz_agave.so target/x86_64-unknown-linux-gnu/release/libsolfuzz_agave_stubbed.so
 
 shared_obj_debug:
-	$(CARGO) build --lib
+	$(CARGO) build --lib --profile dev
+	$(CARGO) build --lib --profile dev --features stub-agave --target-dir target/stub-agave
+	cp target/stub-agave/debug/libsolfuzz_agave.so target/debug/libsolfuzz_agave_stubbed.so
+
+shared_obj_rel:
+	$(CARGO) build --lib --release
+	$(CARGO) build --lib --release --features stub-agave --target-dir target/stub-agave
+	cp target/stub-agave/release/libsolfuzz_agave.so target/release/libsolfuzz_agave_stubbed.so
 
 shared_obj_core_bpf:
 	./scripts/fetch_program.sh $(PROGRAM)
