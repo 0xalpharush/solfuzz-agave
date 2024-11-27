@@ -587,11 +587,6 @@ pub fn execute_transaction(context: TxnContext) -> Option<TxnResult> {
             }
         }
 
-        // Only keep accounts that were passed in as account_keys or as ALUT accounts
-        relevant_accounts.acct_states.retain(|account| {
-            let pubkey = Pubkey::new_from_array(account.address.clone().try_into().unwrap());
-            loaded_account_keys.contains(&pubkey) && pubkey != sysvar::instructions::id()
-        });
         relevant_accounts.acct_states = relevant_accounts
             .clone()
             .acct_states
@@ -600,6 +595,12 @@ pub fn execute_transaction(context: TxnContext) -> Option<TxnResult> {
             .filter(|&(i, _)| sanitized_transaction.message().is_writable(i))
             .map(|(_, account)| account)
             .collect();
+
+        // Only keep accounts that were passed in as account_keys or as ALUT accounts
+        relevant_accounts.acct_states.retain(|account| {
+            let pubkey = Pubkey::new_from_array(account.address.clone().try_into().unwrap());
+            loaded_account_keys.contains(&pubkey) && pubkey != sysvar::instructions::id()
+        });
 
         txn_result.resulting_state = Some(relevant_accounts.clone());
     }
