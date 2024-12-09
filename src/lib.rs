@@ -194,6 +194,7 @@ pub static HARDCODED_FEATURES: &[u64] = feature_list![
     deprecate_unused_legacy_vote_plumbing,
     simplify_alt_bn128_syscall_error_codes,
     ed25519_precompile_verify_strict,
+    enable_program_runtime_v2_and_loader_v4,
 ];
 
 static SUPPORTED_FEATURES: &[u64] = feature_list![
@@ -231,7 +232,6 @@ static SUPPORTED_FEATURES: &[u64] = feature_list![
     enable_poseidon_syscall,
     timely_vote_credits,
     remaining_compute_units_syscall_enabled,
-    // enable_program_runtime_v2_and_loader_v4,
     better_error_codes_for_tx_lamport_check,
     enable_alt_bn128_compression_syscall,
     update_hashes_per_tick2,
@@ -511,6 +511,14 @@ fn load_builtins(cache: &mut ProgramCacheForTxBatch) -> HashSet<Pubkey> {
         )),
     );
     cache.replenish(
+        solana_sdk::loader_v4::id(),
+        Arc::new(ProgramCacheEntry::new_builtin(
+            0u64,
+            0usize,
+            solana_loader_v4_program::Entrypoint::vm,
+        )),
+    );
+    cache.replenish(
         solana_sdk::compute_budget::id(),
         Arc::new(ProgramCacheEntry::new_builtin(
             0u64,
@@ -564,6 +572,7 @@ fn load_builtins(cache: &mut ProgramCacheForTxBatch) -> HashSet<Pubkey> {
     builtins.insert(solana_sdk::bpf_loader_deprecated::id());
     builtins.insert(solana_sdk::bpf_loader::id());
     builtins.insert(solana_sdk::bpf_loader_upgradeable::id());
+    builtins.insert(solana_sdk::loader_v4::id());
     builtins.insert(solana_sdk::compute_budget::id());
     builtins.insert(solana_config_program::id());
     builtins.insert(solana_stake_program::id());
