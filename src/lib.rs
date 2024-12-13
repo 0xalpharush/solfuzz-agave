@@ -262,6 +262,7 @@ static SUPPORTED_FEATURES: &[u64] = feature_list![
     partitioned_epoch_rewards_superfeature,
     get_sysvar_syscall_enabled,
     migrate_feature_gate_program_to_core_bpf,
+    disable_account_loader_special_case,
 ];
 
 // If the `CORE_BPF_PROGRAM_ID` variable is set, declares the default compute
