@@ -368,28 +368,33 @@ pub fn execute_block(context: BlockContext) -> Option<BlockEffects> {
         context
             .microblocks
             .iter()
-            .flat_map(|microblock| microblock.txns.iter())
-            .filter_map(|txn| {
-                let message = txn.message.as_ref().and_then(build_versioned_message)?;
-                let signatures = txn
-                    .signatures
+            .filter_map(|microblock| {
+                let transactions: Vec<VersionedTransaction> = microblock
+                    .txns
                     .iter()
-                    .map(|item| {
-                        Signature::from(
-                            <Vec<u8> as TryInto<[u8; 64]>>::try_into(item.clone()).unwrap(),
-                        )
-                    })
-                    .collect::<Vec<Signature>>();
+                    .filter_map(|txn| {
+                        let message = txn.message.as_ref().and_then(build_versioned_message)?;
+                        let signatures = txn
+                            .signatures
+                            .iter()
+                            .map(|item| {
+                                Signature::from(
+                                    <Vec<u8> as TryInto<[u8; 64]>>::try_into(item.clone()).unwrap(),
+                                )
+                            })
+                            .collect::<Vec<Signature>>();
 
-                let transaction = VersionedTransaction {
-                    message,
-                    signatures,
-                };
+                        Some(VersionedTransaction {
+                            message,
+                            signatures,
+                        })
+                    })
+                    .collect();
 
                 Some(Entry {
                     num_hashes: 1u64,
                     hash: Hash::default(),
-                    transactions: vec![transaction],
+                    transactions, // If empty, it is effectively a tick.
                 })
             })
             .collect::<Vec<Entry>>(),
