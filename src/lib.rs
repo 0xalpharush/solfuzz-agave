@@ -1,12 +1,10 @@
 #![allow(clippy::missing_safety_doc)]
 
-pub mod block;
 pub mod elf_loader;
 pub mod pack;
 mod shred_parse;
 pub mod txn_fuzzer;
-mod types;
-pub mod types_fuzzer;
+
 pub mod utils;
 pub mod vm_interp;
 pub mod vm_syscalls;
@@ -270,6 +268,7 @@ pub static HARDCODED_FEATURES: &[u64] = feature_list![
     move_precompile_verification_to_svm,
     enable_transaction_loading_failure_fees,
     enable_loader_v4, // custom hardcoded feature
+    stricter_abi_and_runtime_constraints,
 ];
 
 static SUPPORTED_FEATURES: &[u64] = feature_list![
@@ -282,7 +281,6 @@ static SUPPORTED_FEATURES: &[u64] = feature_list![
     disable_turbine_fanout_experiments,
     // enable_big_mod_exp_syscall, // NOT impl in fd
     // deplete_cu_meter_on_vm_failure, // NOT GOOD FOR FUZZING
-    // bpf_account_data_direct_mapping, // NOT finished in fd
     include_loaded_accounts_data_size_in_fee_calculation,
     // remaining_compute_units_syscall_enabled, // NOT impl in fd
     enable_zk_transfer_with_fee,
@@ -299,7 +297,6 @@ static SUPPORTED_FEATURES: &[u64] = feature_list![
     enable_get_epoch_stake_syscall,
     remove_accounts_executable_flag_checks,
     fix_alt_bn128_multiplication_input_length,
-    lift_cpi_caller_restriction,
     accounts_lt_hash,
     remove_accounts_delta_hash,
     snapshots_lt_hash,
@@ -501,13 +498,13 @@ pub fn get_instr_accounts(
                 instruction_account.index_in_transaction == index_in_transaction
             })
             .unwrap_or(instruction_account_index) as IndexOfAccount;
-        instruction_accounts.push(InstructionAccount {
+        instruction_accounts.push(InstructionAccount::new(
             index_in_transaction,
-            index_in_caller: index_in_transaction,
+            index_in_transaction,
             index_in_callee,
-            is_signer: account_meta.is_signer,
-            is_writable: account_meta.is_writable,
-        });
+            account_meta.is_signer,
+            account_meta.is_writable,
+        ));
     }
     instruction_accounts
 }
@@ -664,15 +661,15 @@ fn create_invoke_context_fields(
                 if input
                     .feature_set
                     .active()
-                    .contains_key(&bpf_account_data_direct_mapping::id())
+                    .contains_key(&stricter_abi_and_runtime_constraints::id())
                 {
                     input
                         .feature_set
-                        .deactivate(&bpf_account_data_direct_mapping::id());
+                        .deactivate(&stricter_abi_and_runtime_constraints::id());
                 } else {
                     input
                         .feature_set
-                        .activate(&bpf_account_data_direct_mapping::id(), 0);
+                        .activate(&stricter_abi_and_runtime_constraints::id(), 0);
                 }
             }
         }

@@ -145,7 +145,9 @@ pub fn execute_vm_syscall(input: SyscallContext) -> Option<SyscallEffects> {
         );
         return None;
     };
-    let direct_mapping = invoke_ctx.get_feature_set().bpf_account_data_direct_mapping;
+    let stricter_abi_and_runtime_constraints = invoke_ctx
+        .get_feature_set()
+        .stricter_abi_and_runtime_constraints;
     let mask_out_rent_epoch_in_vm_serialization = invoke_ctx
         .get_feature_set()
         .mask_out_rent_epoch_in_vm_serialization;
@@ -178,7 +180,11 @@ pub fn execute_vm_syscall(input: SyscallContext) -> Option<SyscallEffects> {
     let (_aligned_memory, input_memory_regions, acc_metadatas) = serialize_parameters(
         invoke_ctx.transaction_context,
         caller_instr_ctx,
-        !direct_mapping,
+        stricter_abi_and_runtime_constraints,
+        #[cfg(feature = "direct_mapping")]
+        true, /* direct_mapping */
+        #[cfg(not(feature = "direct_mapping"))]
+        false,
         mask_out_rent_epoch_in_vm_serialization,
     )
     .unwrap();
@@ -272,13 +278,17 @@ pub fn execute_vm_syscall(input: SyscallContext) -> Option<SyscallEffects> {
         .chain(input_memory_regions)
         .collect();
 
-    let Ok(memory_mapping) = MemoryMapping::new_with_cow(
+    let Ok(memory_mapping) = MemoryMapping::new_with_access_violation_handler(
         regions,
         &config,
         sbpf_version,
-        invoke_ctx
-            .transaction_context
-            .account_data_write_access_handler(),
+        invoke_ctx.transaction_context.access_violation_handler(
+            stricter_abi_and_runtime_constraints,
+            #[cfg(feature = "direct_mapping")]
+            true, /* direct_mapping */
+            #[cfg(not(feature = "direct_mapping"))]
+            false,
+        ),
     ) else {
         cleanup_static_ptrs(
             transaction_context_ptr,

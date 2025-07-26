@@ -30,7 +30,7 @@ use solana_rent::Rent;
 use solana_rent_collector::RentCollector;
 use solana_runtime::bank::{Bank, BankFieldsToDeserialize, BankRc};
 use solana_runtime::bank_forks::BankForks;
-use solana_runtime::epoch_stakes::EpochStakes;
+use solana_runtime::epoch_stakes::VersionedEpochStakes;
 use solana_runtime::installed_scheduler_pool::BankWithScheduler;
 use solana_runtime::prioritization_fee_cache::PrioritizationFeeCache;
 use solana_runtime::runtime_config::RuntimeConfig;
@@ -181,11 +181,11 @@ pub fn execute_block(context: BlockContext) -> Option<BlockEffects> {
             // Toggle the BPF direct mapping feature
             if feature_set
                 .active()
-                .contains_key(&bpf_account_data_direct_mapping::id())
+                .contains_key(&stricter_abi_and_runtime_constraints::id())
             {
-                feature_set.deactivate(&bpf_account_data_direct_mapping::id());
+                feature_set.deactivate(&stricter_abi_and_runtime_constraints::id());
             } else {
-                feature_set.activate(&bpf_account_data_direct_mapping::id(), 0);
+                feature_set.activate(&stricter_abi_and_runtime_constraints::id(), 0);
             }
         }
     }

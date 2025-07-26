@@ -35,6 +35,7 @@ use solana_svm::transaction_processing_result::{
 use solana_svm::transaction_processor::{ExecutionRecordingConfig, TransactionProcessingConfig};
 use solana_sysvar;
 use solana_timings::ExecuteTimings;
+use solana_transaction::sanitized::SanitizedTransaction;
 use solana_transaction::versioned::VersionedTransaction;
 use solana_transaction::TransactionVerificationMode;
 use solana_transaction_context::TransactionAccount;
@@ -159,15 +160,6 @@ impl From<TransactionAccount> for proto::AcctState {
 
 impl From<LoadedTransaction> for proto::ResultingState {
     fn from(value: LoadedTransaction) -> proto::ResultingState {
-        let rent_debits = value
-            .rent_debits
-            .into_unordered_rewards_iter()
-            .map(|(key, value)| proto::RentDebits {
-                pubkey: key.to_bytes().to_vec(),
-                rent_collected: value.lamports,
-            })
-            .collect::<Vec<proto::RentDebits>>();
-
         let mut acct_states: Vec<AcctState> = Vec::with_capacity(value.accounts.len());
 
         for item in value.accounts {
@@ -176,17 +168,17 @@ impl From<LoadedTransaction> for proto::ResultingState {
 
         proto::ResultingState {
             acct_states,
-            rent_debits,
-            transaction_rent: value.rent,
+            ..Default::default()
         }
     }
 }
 
 fn output_txn_result_from_result(
     value: LoadAndExecuteTransactionsOutput,
-    sanitized_message: &SanitizedMessage,
+    sanitized_tx: &SanitizedTransaction,
 ) -> TxnResult {
     let execution_results = &value.processing_results[0];
+    let sanitized_message = sanitized_tx.message();
     let (
         is_ok,
         sanitization_error,
@@ -226,10 +218,7 @@ fn output_txn_result_from_result(
                         (status, instr_err, custom_err_ret, instr_err_idx)
                     }
                 };
-            let rent = match txn {
-                ProcessedTransaction::Executed(executed_tx) => executed_tx.loaded_transaction.rent,
-                ProcessedTransaction::FeesOnly(_) => 0,
-            };
+            let rent = 0;
             let resulting_state: Option<ResultingState> = match txn {
                 ProcessedTransaction::Executed(executed_tx) => {
                     Some(executed_tx.loaded_transaction.clone().into())
@@ -239,8 +228,7 @@ fn output_txn_result_from_result(
                     collect_accounts_for_failed_tx(
                         &mut accounts,
                         &mut None,
-                        sanitized_message,
-                        None,
+                        Some(sanitized_tx),
                         &tx.rollback_accounts,
                     );
                     Some(ResultingState {
@@ -343,11 +331,11 @@ pub fn execute_transaction(context: &TxnContext) -> Option<TxnResult> {
             // Toggle the BPF direct mapping feature
             if feature_set
                 .active()
-                .contains_key(&bpf_account_data_direct_mapping::id())
+                .contains_key(&stricter_abi_and_runtime_constraints::id())
             {
-                feature_set.deactivate(&bpf_account_data_direct_mapping::id());
+                feature_set.deactivate(&stricter_abi_and_runtime_constraints::id());
             } else {
-                feature_set.activate(&bpf_account_data_direct_mapping::id(), 0);
+                feature_set.activate(&stricter_abi_and_runtime_constraints::id(), 0);
             }
         }
     }
@@ -564,7 +552,7 @@ pub fn execute_transaction(context: &TxnContext) -> Option<TxnResult> {
         .map(|message| message.account_keys.clone())
         .unwrap_or_default();
 
-    let mut txn_result = output_txn_result_from_result(result, sanitized_transaction.message());
+    let mut txn_result = output_txn_result_from_result(result, &sanitized_transaction);
     if let Some(relevant_accounts) = &mut txn_result.resulting_state {
         let mut loaded_account_keys = AHashSet::<Pubkey>::new();
         loaded_account_keys.extend(

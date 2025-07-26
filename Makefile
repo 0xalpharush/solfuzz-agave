@@ -31,6 +31,7 @@ fetch_proto:
 
 shared_obj:
 	RUSTFLAGS="$(RUSTFLAGS)" $(CARGO) build --target x86_64-unknown-linux-gnu --release --lib
+	RUSTFLAGS="$(RUSTFLAGS)" $(CARGO) build --features direct_mapping --target target/x86_64-unknown-linux-gnu --target-dir direct_mapping --release --lib
 
 shared_obj_cov:
 	RUSTFLAGS="$(RUSTFLAGS) -Cinstrument-coverage" $(CARGO) build --target x86_64-unknown-linux-gnu --release \

@@ -6,7 +6,7 @@ use crate::{
     },
     InstrContext, TOGGLE_DIRECT_MAPPING,
 };
-use agave_feature_set::bpf_account_data_direct_mapping;
+use agave_feature_set::stricter_abi_and_runtime_constraints;
 use bincode::Error;
 use prost::Message;
 use solana_compute_budget::compute_budget::SVMTransactionExecutionCost;
@@ -170,15 +170,15 @@ pub fn execute_vm_interp(syscall_context: SyscallContext) -> Option<SyscallEffec
             if instr_ctx
                 .feature_set
                 .active()
-                .contains_key(&bpf_account_data_direct_mapping::id())
+                .contains_key(&stricter_abi_and_runtime_constraints::id())
             {
                 instr_ctx
                     .feature_set
-                    .deactivate(&bpf_account_data_direct_mapping::id());
+                    .deactivate(&stricter_abi_and_runtime_constraints::id());
             } else {
                 instr_ctx
                     .feature_set
-                    .activate(&bpf_account_data_direct_mapping::id(), 0);
+                    .activate(&stricter_abi_and_runtime_constraints::id(), 0);
             }
         }
     }
@@ -208,7 +208,9 @@ pub fn execute_vm_interp(syscall_context: SyscallContext) -> Option<SyscallEffec
         .transaction_context
         .find_index_of_program_account(&instr_ctx.instruction.program_id)?;
 
-    let direct_mapping = invoke_ctx.get_feature_set().bpf_account_data_direct_mapping;
+    let stricter_abi_and_runtime_constraints = invoke_ctx
+        .get_feature_set()
+        .stricter_abi_and_runtime_constraints;
     let mask_out_rent_epoch_in_vm_serialization = invoke_ctx
         .get_feature_set()
         .mask_out_rent_epoch_in_vm_serialization;
@@ -233,7 +235,11 @@ pub fn execute_vm_interp(syscall_context: SyscallContext) -> Option<SyscallEffec
     let (_aligned_memory, input_memory_regions, acc_metadatas) = serialize_parameters(
         invoke_ctx.transaction_context,
         caller_instr_ctx,
-        !direct_mapping,
+        stricter_abi_and_runtime_constraints,
+        #[cfg(feature = "direct_mapping")]
+        true, /* direct_mapping */
+        #[cfg(not(feature = "direct_mapping"))]
+        false,
         mask_out_rent_epoch_in_vm_serialization,
     )
     .unwrap();
@@ -324,13 +330,17 @@ pub fn execute_vm_interp(syscall_context: SyscallContext) -> Option<SyscallEffec
         .chain(input_memory_regions)
         .collect();
 
-    let Ok(memory_mapping) = MemoryMapping::new_with_cow(
+    let Ok(memory_mapping) = MemoryMapping::new_with_access_violation_handler(
         regions,
         &config,
         sbpf_version,
-        invoke_ctx
-            .transaction_context
-            .account_data_write_access_handler(),
+        invoke_ctx.transaction_context.access_violation_handler(
+            stricter_abi_and_runtime_constraints,
+            #[cfg(feature = "direct_mapping")]
+            true, /* direct_mapping */
+            #[cfg(not(feature = "direct_mapping"))]
+            false,
+        ),
     ) else {
         return None;
     };

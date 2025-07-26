@@ -14,7 +14,7 @@ use std::ffi::c_int;
 pub const ACTIVATE_FEATURES: &[Pubkey] = &[
     switch_to_new_elf_parser::id(),
     error_on_syscall_bpf_function_hash_collisions::id(),
-    bpf_account_data_direct_mapping::id(),
+    stricter_abi_and_runtime_constraints::id(),
 ];
 
 pub fn load_elf(elf_bytes: &[u8], deploy_checks: bool) -> Option<ElfLoaderEffects> {
@@ -30,11 +30,11 @@ pub fn load_elf(elf_bytes: &[u8], deploy_checks: bool) -> Option<ElfLoaderEffect
                 // Toggle the BPF direct mapping feature
                 if feature_set
                     .active()
-                    .contains_key(&bpf_account_data_direct_mapping::id())
+                    .contains_key(&stricter_abi_and_runtime_constraints::id())
                 {
-                    feature_set.deactivate(&bpf_account_data_direct_mapping::id());
+                    feature_set.deactivate(&stricter_abi_and_runtime_constraints::id());
                 } else {
-                    feature_set.activate(&bpf_account_data_direct_mapping::id(), 0);
+                    feature_set.activate(&stricter_abi_and_runtime_constraints::id(), 0);
                 }
             }
         }
